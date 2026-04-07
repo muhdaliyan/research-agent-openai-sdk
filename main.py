@@ -22,7 +22,7 @@ async def main():
     try:
         while True:
             # User Input with style
-            user_input = Prompt.ask("[bold green]Chat You[/bold green]")
+            user_input = Prompt.ask("\n[bold green]You[/bold green]")
             
             if not user_input.strip():
                 continue
@@ -40,50 +40,65 @@ async def main():
             # Show reasoning status
             console.print("[dim italic blue]Agent is reasoning...[/dim italic blue]", end="\r")
             
+            # Increased turn limit for deeper research
             result = Runner.run_streamed(
                 research_agent,
-                input=conversation_history
+                input=conversation_history,
+                max_turns=20
             )
             
             is_first_chunk = True
+            current_mode = "reasoning"
+            is_reasoning_label_printed = False
+            is_content_label_printed = False
             
             async for event in result.stream_events():
-                # Clear reasoning status on first output (chunk or tool call)
-                if is_first_chunk and (event.type == "raw_response_event" or event.name == "tool_called"):
-                    # Print whitespace to clear the reasoning message
+                if is_first_chunk:
                     console.print(" " * 50, end="\r")
-                    console.print("[bold blue]AI:[/bold blue] ", end="", flush=True)
                     is_first_chunk = False
 
-                # Handle streaming text deltas
                 if event.type == "raw_response_event":
+                    data_type = getattr(event.data, "type", None)
+                    reason = None
                     content = None
-                    if hasattr(event.data, "choices") and event.data.choices:
-                        delta = getattr(event.data.choices[0], "delta", None)
-                        content = getattr(delta, "content", None)
-                    elif hasattr(event.data, "delta"):
-                        content = getattr(event.data.delta, "content", None)
-                    elif hasattr(event.data, "text"):
-                        content = event.data.text
                     
+                    if data_type == "response.reasoning_text.delta":
+                        reason = getattr(event.data, "delta", None)
+                    elif data_type == "response.output_text.delta":
+                        content = getattr(event.data, "delta", None)
+                    elif hasattr(event.data, "choices") and event.data.choices:
+                        delta = event.data.choices[0].delta
+                        reason = getattr(delta, "reasoning_content", getattr(delta, "thought", None))
+                        content = getattr(delta, "content", getattr(event.data, "text", None))
+                    
+                    # 1. Text found in reasoning field
+                    if reason:
+                        if not is_reasoning_label_printed:
+                            console.print("\n[bold grey50]AI Reasoning:[/bold grey50] ", end="")
+                            is_reasoning_label_printed = True
+                        print(f"\033[3;90m{reason}\033[0m", end="", flush=True)
+                    
+                    # 2. Text found in content field
                     if content:
-                        console.print(content, end="", flush=True)
-                
-                # Handle tool calls
+                        if not is_content_label_printed:
+                            if is_reasoning_label_printed: print("\n")
+                            console.print("[bold blue]AI:[/bold blue] ", end="")
+                            is_content_label_printed = True
+                        print(content, end="", flush=True)
+
                 elif event.type == "run_item_stream_event":
-                    if event.name == "tool_called":
+                    item_type = getattr(event.item, "type", None)
+                    
+                    if getattr(event, "name", None) == "tool_called":
                         raw = getattr(event.item, "raw_item", None)
-                        tool_name = (
-                            getattr(event.item, "tool_name", None) or 
-                            getattr(event.item, "name", None) or
-                            getattr(getattr(raw, "function", None), "name", None) or
-                            "Unknown Tool"
-                        )
-                        console.print(f"\n[bold yellow]⚡ {tool_name}...[/bold yellow]", flush=True)
-                    elif event.name == "tool_output":
-                        console.print(f"[dim green]✅ Tool results received.[/dim green]\n[bold blue]AI:[/bold blue] ", end="", flush=True)
+                        tool_name = (getattr(event.item, "tool_name", None) or 
+                                     getattr(event.item, "name", None) or 
+                                     "Tool")
+                        console.print(f"\n[bold yellow]⚡ {tool_name}...[/bold yellow]")
+                    elif getattr(event, "name", None) == "tool_output":
+                        console.print(f"[dim green]✅ Tool results received.[/dim green]")
             
-            console.print() # Final newline after response
+            print()
             
             # Update history (result.new_items is updated during streaming)
             conversation_history.extend([item.to_input_item() for item in result.new_items])

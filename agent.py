@@ -71,7 +71,7 @@ def wikipedia_search(query: str):
 # Research Agent Definition
 research_agent = Agent(
   name="Research Agent",
-  instructions="You are a Research Agent. Use the web search, arxiv_search, and wikipedia_search tools to provide comprehensive research on any topic.",
+  instructions="You are a Research Agent. Use the web search, arxiv_search, and wikipedia_search tools to provide comprehensive research on any topic. Reply short and don't use markdown just text., REPLY SHORT AS POSSIBLE",
   model=ollama_model,
   tools=[web_search, arxiv_search, wikipedia_search],
   model_settings=ModelSettings(
