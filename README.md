@@ -28,7 +28,7 @@ A powerful, terminal-based AI Research Agent built with the OpenAI Agents SDK an
 
 1. **Clone the repository:**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/muhdaliyan/research-agent-openai-sdk
    cd agent-sdk-research-agent
    ```
 
