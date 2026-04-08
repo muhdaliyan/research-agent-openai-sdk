@@ -4,6 +4,9 @@ from ddgs import DDGS
 import arxiv
 import wikipediaapi
 from agents import function_tool, Agent, ModelSettings, set_tracing_disabled
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.panel import Panel
 from openai import AsyncOpenAI
 from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 
@@ -29,12 +32,26 @@ ollama_model = OpenAIChatCompletionsModel(
     openai_client=client
 )
 
+console = Console()
+
+def request_tool_approval(tool_name: str, arguments: dict) -> bool:
+    """
+    Ask user for permission to execute a tool.
+    """
+    console.print(f"\n[bold magenta]🛡️ TOOL APPROVAL REQUEST[/bold magenta]")
+    console.print(Panel(f"Tool: [cyan]{tool_name}[/cyan]\nArgs: [dim]{arguments}[/dim]", border_style="magenta"))
+    choice = Prompt.ask("[bold]Execute this tool?[/bold]", choices=["y", "n"], default="y")
+    return choice.lower() == "y"
+
 # Tool definitions
 @function_tool
 def web_search(query: str, region: str = "wt-wt", safesearch: str = "moderate", time: str = "m", max_results: int = 5):
     """
     Perform a web search for the latest information.
     """
+    if not request_tool_approval("web_search", {"query": query}):
+        return "Tool execution denied by user."
+        
     with DDGS() as ddgs:
         results = [r for r in ddgs.text(query, region=region, safesearch=safesearch, timelimit=time, max_results=max_results)]
         return results
