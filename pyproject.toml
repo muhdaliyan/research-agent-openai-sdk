@@ -8,6 +8,7 @@ dependencies = [
     "arxiv>=2.4.1",
     "ddgs>=9.13.0",
     "duckduckgo-search>=8.1.1",
+    "ipykernel>=7.2.0",
     "openai>=2.30.0",
     "openai-agents>=0.13.5",
     "pydantic>=2.12.5",
